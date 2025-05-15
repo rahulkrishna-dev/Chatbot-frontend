@@ -1,0 +1,645 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Customer Support Chat</title>
+    <style>
+        body {
+            font-family: sans-serif;
+            margin: 0;
+            background-color: #f4f4f4;
+            display: flex;
+            justify-content: center;
+            align-items: stretch;
+            min-height: 100vh;
+            height: 100vh;
+        }
+
+        .chat-container {
+            width: 500px;
+            background-color: #fff;
+            border-radius: 8px;
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+            display: flex;
+            flex-direction: row;
+            overflow: hidden;
+            height: 100vh;
+            min-height: 100vh;
+            max-height: 100vh;
+        }
+
+        .chat-view {
+            flex: 1 1 auto;
+            height: 100%;
+            min-height: 0;
+            overflow-y: auto;
+            padding: 15px;
+            border-bottom: 1px solid #eee;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .message {
+            margin-bottom: 10px;
+            padding: 8px 12px;
+            border-radius: 18px;
+            max-width: 70%;
+            line-height: 1.4;
+        }
+
+        .message.user {
+            background-color: #007bff;
+            color: white;
+            align-self: flex-end;
+            margin-left: auto;
+        }
+
+        .message.agent {
+            background-color: #e9e9eb;
+            color: #333;
+            align-self: flex-start;
+            margin-right: auto;
+        }
+
+        .message.system {
+            background-color: #f0f0f0;
+            color: #555;
+            text-align: center;
+            font-style: italic;
+            font-size: 0.9em;
+            width: 100%;
+            max-width: 100%;
+            align-self: center;
+        }
+
+        .input-area {
+            display: flex;
+            padding: 10px;
+            border-bottom: 1px solid #eee;
+            border-bottom: none;
+        }
+
+        #messageInput {
+            flex-grow: 1;
+            padding: 10px;
+            border: 1px solid #ddd;
+            border-radius: 20px;
+            margin-right: 10px;
+        }
+
+        #sendMessageBtn {
+            padding: 10px 15px;
+            background-color: #28a745;
+            color: white;
+            border: none;
+            border-radius: 20px;
+            cursor: pointer;
+        }
+
+        #sendMessageBtn:disabled {
+            background-color: #ccc;
+            cursor: not-allowed;
+        }
+
+        .controls {
+            display: flex;
+            justify-content: space-around;
+            padding: 10px;
+        }
+
+        .controls button {
+            padding: 10px 15px;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+        }
+
+        #startThreadBtn {
+            background-color: #007bff;
+            color: white;
+        }
+
+        #closeThreadBtn {
+            background-color: #dc3545;
+            color: white;
+        }
+
+        #closeThreadBtn:disabled {
+            background-color: #ccc;
+            cursor: not-allowed;
+        }
+
+        .tabs {
+            height: 100%;
+        }
+        .tab-btn {
+            width: 100%;
+            padding: 16px 10px;
+            border: none;
+            border-radius: 0;
+            background: none;
+            color: #333;
+            text-align: left;
+            font-size: 1em;
+            transition: background 0.2s, color 0.2s;
+            outline: none;
+            border-left: 4px solid transparent;
+            font-family: inherit;
+            font-weight: 500;
+            box-sizing: border-box;
+        }
+        .tab-btn.active, .tab-btn:focus {
+            background: #fff;
+            color: #007bff;
+            border-left: 4px solid #007bff;
+            font-weight: bold;
+        }
+        .tab-btn:disabled {
+            color: #bbb;
+            background: none;
+            border-left: 4px solid transparent;
+            cursor: not-allowed;
+            opacity: 0.7;
+        }
+        .rateable-agent:hover {
+            background: #e0f0ff;
+        }
+        .rating-dropdown {
+            display: block;
+            margin-top: 8px;
+            width: 100%;
+            font-size: 1em;
+            border-radius: 5px;
+            border: 1px solid #007bff;
+            padding: 4px 8px;
+        }
+    </style>
+</head>
+<body>
+    <div class="chat-container" style="flex-direction: row; width: 500px;">
+        <div class="controls tabs" style="flex-direction: column; align-items: flex-start; width: 140px; min-width: 120px; background: #f7f7fa; border-right: 1px solid #eee; padding: 0;">
+            <button id="chatTabBtn" class="tab-btn active">Chat</button>
+            <button id="feedbackBtn" class="tab-btn">Give Feedback</button>
+            <button id="closeThreadBtn" class="tab-btn" disabled>Close Thread</button>
+        </div>
+        <div style="flex: 1; display: flex; flex-direction: column;">
+            <div id="chatView" class="chat-view"></div>
+            <div class="input-area" id="inputArea">
+                <input type="text" id="messageInput" placeholder="Type your message..." disabled>
+                <button id="sendMessageBtn" disabled>Send</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="feedbackModal" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); z-index: 1000; justify-content: center; align-items: center;">
+        <div style="background: white; padding: 20px; border-radius: 8px; width: 400px; box-shadow: 0 2px 10px rgba(0,0,0,0.1);">
+            <h3 style="margin-top: 0;">Rate Agent Response</h3>
+            <p id="feedbackMessage" style="margin-bottom: 10px; font-style: italic;"></p>
+            <select id="feedbackRating" style="width: 100%; margin-bottom: 10px; padding: 8px; border-radius: 5px; border: 1px solid #ccc;">
+                <option value="">Rating :</option>
+                <option value="6">6: Fully correct, concise, and aligned with guidelines</option>
+                <option value="5">5: Mostly correct, minor tone/style/content issues</option>
+                <option value="4">4: Contains useful info, but needs significant edits to meet expectations</option>
+                <option value="3">3: Related to query, but factually wrong or misinterpreted</option>
+                <option value="2">2: Not related to the user's query at all</option>
+                <option value="1">1: Includes fabricated facts or unsupported statements</option>
+            </select>
+            <textarea id="feedbackRemarks" placeholder="Remarks (optional)" style="width: 100%; padding: 8px; border-radius: 5px; border: 1px solid #ccc; margin-bottom: 10px; min-height: 80px; resize: vertical;"></textarea>
+            <div style="display: flex; justify-content: flex-end; gap: 10px;">
+                <button id="feedbackCancel" style="padding: 8px 16px; border: none; border-radius: 5px; background: #f0f0f0; cursor: pointer;">Cancel</button>
+                <button id="feedbackSubmit" style="padding: 8px 16px; border: none; border-radius: 5px; background: #007bff; color: white; cursor: pointer;">Submit</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            const chatView = document.getElementById('chatView');
+            const messageInput = document.getElementById('messageInput');
+            const sendMessageBtn = document.getElementById('sendMessageBtn');
+            const chatTabBtn = document.getElementById('chatTabBtn');
+            const closeThreadBtn = document.getElementById('closeThreadBtn');
+            const feedbackBtn = document.getElementById('feedbackBtn');
+            const inputArea = document.getElementById('inputArea');
+
+            let currentThreadId = null; // To store the ID of the current chat thread
+
+            // --- API Call Functions ---
+            async function apiStartThread(messageText) {
+                // Show loading message
+                const loadingMessageId = 'loading-' + Date.now();
+                addMessageToChat('Processing your message...', 'system', { messageId: loadingMessageId });
+                
+                try {
+                    const response = await fetch('http://localhost:8080/seller-hub/api/support/message', {
+                        method: 'POST',
+                        headers: {
+                            'X-Gr-Uid': '1011',
+                            'X-Gr-Seller-Id': '49',
+                            'Content-Type': 'application/json'
+                        },
+                        body: JSON.stringify({
+                            message_type: "TEXT",
+                            content: messageText,
+                            source: "POST_ONBOARDING"
+                        })
+                    });
+                    if (!response.ok) {
+                        throw { success: false, message: `HTTP error: ${response.status}` };
+                    }
+                    const data = await response.json();
+                    if (data.status === 1 && data.data && data.data.thread_id) {
+                        // Remove loading message
+                        const loadingMessage = document.querySelector(`[data-message-id="${loadingMessageId}"]`);
+                        if (loadingMessage) {
+                            loadingMessage.remove();
+                        }
+                        return {
+                            success: true,
+                            threadId: data.data.thread_id,
+                            message: data.data.content
+                        };
+                    } else {
+                        // Remove loading message on error
+                        const loadingMessage = document.querySelector(`[data-message-id="${loadingMessageId}"]`);
+                        if (loadingMessage) {
+                            loadingMessage.remove();
+                        }
+                        throw { success: false, message: data.message || "Failed to start thread." };
+                    }
+                } catch (error) {
+                    // Remove loading message on exception
+                    const loadingMessage = document.querySelector(`[data-message-id="${loadingMessageId}"]`);
+                    if (loadingMessage) {
+                        loadingMessage.remove();
+                    }
+                    throw error;
+                }
+            }
+
+            async function apiSendMessage(threadId, messageText) {
+                // Show loading message
+                const loadingMessageId = 'loading-' + Date.now();
+                addMessageToChat('Processing your message...', 'system', { messageId: loadingMessageId });
+                
+                try {
+                    const response = await fetch('http://localhost:8080/seller-hub/api/support/message', {
+                        method: 'POST',
+                        headers: {
+                            'X-Gr-Uid': '1011',
+                            'X-Gr-Seller-Id': '49',
+                            'Content-Type': 'application/json'
+                        },
+                        body: JSON.stringify({
+                            message_type: "TEXT",
+                            content: messageText,
+                            source: "POST_ONBOARDING",
+                            thread_id: threadId
+                        })
+                    });
+                    if (!response.ok) {
+                        throw { success: false, message: `HTTP error: ${response.status}` };
+                    }
+                    const data = await response.json();
+                    if (data.status === 1 && data.data) {
+                        // Remove loading message
+                        const loadingMessage = document.querySelector(`[data-message-id="${loadingMessageId}"]`);
+                        if (loadingMessage) {
+                            loadingMessage.remove();
+                        }
+                        return {
+                            success: true,
+                            message: data.data.content,
+                            agentResponse: data.data.content
+                        };
+                    } else {
+                        // Remove loading message on error
+                        const loadingMessage = document.querySelector(`[data-message-id="${loadingMessageId}"]`);
+                        if (loadingMessage) {
+                            loadingMessage.remove();
+                        }
+                        throw { success: false, message: data.message || "Failed to send message." };
+                    }
+                } catch (error) {
+                    // Remove loading message on exception
+                    const loadingMessage = document.querySelector(`[data-message-id="${loadingMessageId}"]`);
+                    if (loadingMessage) {
+                        loadingMessage.remove();
+                    }
+                    throw error;
+                }
+            }
+
+            async function apiCloseThread(threadId) {
+                const response = await fetch('http://localhost:8080/seller-hub/api/support/close-thread', {
+                    method: 'POST',
+                    headers: {
+                        'X-Gr-Uid': '1011',
+                        'X-Gr-Seller-Id': '49',
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({ thread_id: threadId })
+                });
+                if (!response.ok) {
+                    throw { success: false, message: `HTTP error: ${response.status}` };
+                }
+                const data = await response.json();
+                if (data.status === 1) {
+                    return { success: true, message: data.message || "Thread closed successfully." };
+                } else {
+                    throw { success: false, message: data.message || "Failed to close thread." };
+                }
+            }
+
+            async function apiFetchMessages(threadId) {
+                const response = await fetch(`http://localhost:8080/seller-hub/api/support/messages/${threadId}`, {
+                    method: 'GET',
+                    headers: {
+                        'X-Gr-Uid': '1011',
+                        'X-Gr-Seller-Id': '49',
+                        'Content-Type': 'application/json'
+                    }
+                });
+                if (!response.ok) {
+                    throw { success: false, message: `HTTP error: ${response.status}` };
+                }
+                const data = await response.json();
+                if (data.status === 1 && data.data && Array.isArray(data.data.messages)) {
+                    return { success: true, messages: data.data.messages };
+                } else {
+                    throw { success: false, message: data.message || "Failed to fetch messages." };
+                }
+            }
+
+            async function apiSubmitFeedback(messageId, rating, remarks) {
+                const payload = { message_id: messageId, rating };
+                if (remarks) payload.remarks = remarks;
+                const response = await fetch('http://localhost:8080/seller-hub/api/support/message-feedback', {
+                    method: 'POST',
+                    headers: {
+                        'X-Gr-Uid': '1011',
+                        'X-Gr-Seller-Id': '49',
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify(payload)
+                });
+                if (!response.ok) {
+                    throw { success: false, message: `HTTP error: ${response.status}` };
+                }
+                const data = await response.json();
+                if (data.status === 1) {
+                    return { success: true };
+                } else {
+                    throw { success: false, message: data.message || "Failed to submit feedback." };
+                }
+            }
+
+            // --- Helper Functions ---
+
+            function addMessageToChat(message, sender, opts = {}) { // sender can be 'user', 'agent', or 'system'
+                const messageElement = document.createElement('div');
+                messageElement.classList.add('message', sender);
+                messageElement.textContent = message;
+                if (opts.messageId) {
+                    messageElement.dataset.messageId = opts.messageId;
+                }
+                if (opts.isAgentFeedback && sender === 'agent') {
+                    messageElement.classList.add('rateable-agent');
+                    messageElement.style.cursor = 'pointer';
+                    messageElement.addEventListener('click', function handler(e) {
+                        // Open the feedback modal (instead of appending a dropdown inline)
+                        showFeedbackModal(messageElement, opts.messageId);
+                    });
+                }
+                chatView.appendChild(messageElement);
+                chatView.scrollTop = chatView.scrollHeight; // Auto-scroll to the bottom
+            }
+
+            function showFeedbackModal(messageElement, messageId) {
+                const modal = document.getElementById('feedbackModal');
+                const feedbackMessage = document.getElementById('feedbackMessage');
+                const feedbackRating = document.getElementById('feedbackRating');
+                const feedbackRemarks = document.getElementById('feedbackRemarks');
+                const feedbackCancel = document.getElementById('feedbackCancel');
+                const feedbackSubmit = document.getElementById('feedbackSubmit');
+
+                feedbackMessage.textContent = messageElement.textContent.replace(/\s*Rating\s*:.*$/, '');
+                feedbackRating.value = '';
+                feedbackRemarks.value = '';
+
+                feedbackCancel.onclick = () => { modal.style.display = 'none'; };
+                feedbackSubmit.onclick = async () => {
+                    if (!feedbackRating.value) {
+                        alert("Please select a rating.");
+                        return;
+                    }
+                    const rating = Number(feedbackRating.value);
+                    const remarks = feedbackRemarks.value.trim();
+                    try {
+                        await apiSubmitFeedback(messageId, rating, remarks);
+                        modal.style.display = 'none';
+                        // Update the message element (remove any dropdown if present) and append a checkmark.
+                        messageElement.innerHTML = feedbackMessage.textContent + ' \u2714';
+                        const successMsg = document.createElement('div');
+                        successMsg.className = 'message system';
+                        successMsg.textContent = 'Rating (and remarks) successfully submitted.';
+                        chatView.appendChild(successMsg);
+                        chatView.scrollTop = chatView.scrollHeight;
+                    } catch (err) {
+                        alert("Error submitting feedback: " + (err.message || "Unknown error"));
+                    }
+                };
+                modal.style.display = 'flex';
+                feedbackRating.focus();
+            }
+
+            function enableChat() {
+                messageInput.disabled = false;
+                sendMessageBtn.disabled = false;
+                closeThreadBtn.disabled = false;
+                chatTabBtn.disabled = true;
+                messageInput.focus();
+            }
+
+            function disableChat(isInitial = false) {
+                messageInput.disabled = true;
+                sendMessageBtn.disabled = true;
+                closeThreadBtn.disabled = true;
+                chatTabBtn.disabled = false;
+                messageInput.value = ''; // Clear input on disable
+                if (isInitial) {
+                    addMessageToChat('Welcome! Click "Chat" to begin.', 'system');
+                }
+            }
+
+            function setActiveTab(tabBtn) {
+                [chatTabBtn, feedbackBtn, closeThreadBtn].forEach(btn => btn.classList.remove('active'));
+                tabBtn.classList.add('active');
+            }
+
+            function clearChatView() {
+                chatView.innerHTML = '';
+            }
+
+            // --- Event Listeners ---
+
+            chatTabBtn.addEventListener('click', async () => {
+                setActiveTab(chatTabBtn);
+                clearChatView();
+                inputArea.style.display = '';
+                if (currentThreadId) {
+                    // Fetch and show existing thread messages
+                    try {
+                        const response = await apiFetchMessages(currentThreadId);
+                        if (response.success && response.messages.length > 0) {
+                            response.messages.forEach(msg => {
+                                const sender = msg.sender === 'USER' ? 'user' : (msg.sender === 'AGENT' ? 'agent' : 'system');
+                                addMessageToChat(msg.content, sender);
+                            });
+                        } else {
+                            addMessageToChat('No messages found in this thread.', 'system');
+                        }
+                        enableChat();
+                        messageInput.focus();
+                    } catch (error) {
+                        addMessageToChat(`Error: ${error.message || 'Failed to fetch messages.'}`, 'system');
+                        enableChat();
+                        messageInput.focus();
+                    }
+                } else {
+                    addMessageToChat('Please type your message to start the chat.', 'system');
+                    enableChat();
+                    messageInput.focus();
+                }
+            });
+
+            sendMessageBtn.addEventListener('click', async () => {
+                const messageText = messageInput.value.trim();
+                if (messageText === '') {
+                    return;
+                }
+                addMessageToChat(messageText, 'user');
+                const originalMessageText = messageInput.value; // Store before clearing
+                messageInput.value = '';
+                sendMessageBtn.disabled = true;
+
+                try {
+                    let response;
+                    if (!currentThreadId || threadWasClosed) {
+                        // Start thread with first message
+                        response = await apiStartThread(originalMessageText.trim());
+                        if (response.success) {
+                            currentThreadId = response.threadId;
+                            threadWasClosed = false;
+                            if (response.message) {
+                                addMessageToChat(response.message, 'agent');
+                            }
+                        } else {
+                            addMessageToChat(`Error: ${response.message}`, 'system');
+                        }
+                    } else {
+                        // Send message in existing thread
+                        response = await apiSendMessage(currentThreadId, originalMessageText.trim());
+                        if (response.success && response.agentResponse) {
+                            addMessageToChat(response.agentResponse, 'agent');
+                        } else {
+                            addMessageToChat(`Error sending message: ${response.message}`, 'system');
+                        }
+                    }
+                } catch (error) {
+                    console.error("Send message error:", error);
+                    addMessageToChat(`Error: ${error.message || 'Failed to send message.'}`, 'system');
+                    messageInput.value = originalMessageText; // Restore message on exception
+                } finally {
+                    sendMessageBtn.disabled = false;
+                    if (!messageInput.disabled) {
+                        messageInput.focus();
+                    }
+                }
+            });
+
+            messageInput.addEventListener('keypress', (event) => {
+                if (event.key === 'Enter' && !sendMessageBtn.disabled) {
+                    sendMessageBtn.click();
+                }
+            });
+
+            closeThreadBtn.addEventListener('click', async () => {
+                if (!currentThreadId) {
+                    addMessageToChat('No active thread to close.', 'system');
+                    return;
+                }
+                closeThreadBtn.textContent = "Closing...";
+                closeThreadBtn.disabled = true;
+                messageInput.disabled = true;
+                sendMessageBtn.disabled = true;
+
+                try {
+                    const response = await apiCloseThread(currentThreadId);
+                    if (response.success) {
+                        addMessageToChat(`System: ${response.message}`, 'system');
+                        addMessageToChat('Chat ended. Click "Chat" for a new session.', 'system');
+                        currentThreadId = null;
+                        threadWasClosed = true;
+                        disableChat(false);
+                    } else {
+                        addMessageToChat(`Error closing thread: ${response.message}`, 'system');
+                        closeThreadBtn.disabled = false;
+                        messageInput.disabled = false;
+                        sendMessageBtn.disabled = false;
+                    }
+                } catch (error) {
+                    console.error("Close thread error:", error);
+                    addMessageToChat(`Error: ${error.message || 'Could not close thread.'}`, 'system');
+                    closeThreadBtn.disabled = false;
+                    messageInput.disabled = false;
+                    sendMessageBtn.disabled = false;
+                } finally {
+                    closeThreadBtn.textContent = "Close Thread";
+                    if (!currentThreadId) {
+                        chatTabBtn.disabled = false;
+                    }
+                }
+            });
+
+            feedbackBtn.addEventListener('click', async () => {
+                setActiveTab(feedbackBtn);
+                clearChatView();
+                inputArea.style.display = 'none';
+                if (!currentThreadId) {
+                    addMessageToChat('No active thread. Please start a thread first.', 'system');
+                    return;
+                }
+                addMessageToChat('Fetching messages for feedback...', 'system');
+                try {
+                    const response = await apiFetchMessages(currentThreadId);
+                    chatView.innerHTML = '';
+                    if (response.success && response.messages.length > 0) {
+                        response.messages.forEach(msg => {
+                            const sender = msg.sender === 'USER' ? 'user' : (msg.sender === 'AGENT' ? 'agent' : 'system');
+                            addMessageToChat(
+                                msg.content,
+                                sender,
+                                sender === 'agent' ? { messageId: msg.id, isAgentFeedback: true } : {}
+                            );
+                        });
+                    } else {
+                        addMessageToChat('No messages found in this thread.', 'system');
+                    }
+                } catch (error) {
+                    addMessageToChat(`Error: ${error.message || 'Failed to fetch messages.'}`, 'system');
+                }
+            });
+
+            // Track if the thread was closed so we know to start a new one
+            let threadWasClosed = false;
+
+            // Initial state
+            setActiveTab(chatTabBtn);
+            inputArea.style.display = '';
+            disableChat(true);
+        });
+    </script>
+</body>
+</html>
