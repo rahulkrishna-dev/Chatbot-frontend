@@ -232,7 +232,7 @@
                 addMessageToChat('Processing your message...', 'system', { messageId: loadingMessageId });
                 
                 try {
-                    const response = await fetch('http://localhost:8080/seller-hub/api/support/message', {
+                    const response = await fetch('http://seller-central-mft-ci-seller-central-seller-3804.stage-ore-k8s.grofer.io/seller-hub/api/support/message', {
                         method: 'POST',
                         headers: {
                             'X-Gr-Uid': '1011',
@@ -284,7 +284,7 @@
                 addMessageToChat('Processing your message...', 'system', { messageId: loadingMessageId });
                 
                 try {
-                    const response = await fetch('http://localhost:8080/seller-hub/api/support/message', {
+                    const response = await fetch('http://seller-central-mft-ci-seller-central-seller-3804.stage-ore-k8s.grofer.io/seller-hub/api/support/message', {
                         method: 'POST',
                         headers: {
                             'X-Gr-Uid': '1011',
@@ -332,7 +332,7 @@
             }
 
             async function apiCloseThread(threadId) {
-                const response = await fetch('http://localhost:8080/seller-hub/api/support/close-thread', {
+                const response = await fetch('http://seller-central-mft-ci-seller-central-seller-3804.stage-ore-k8s.grofer.io/seller-hub/api/support/close-thread', {
                     method: 'POST',
                     headers: {
                         'X-Gr-Uid': '1011',
@@ -353,7 +353,7 @@
             }
 
             async function apiFetchMessages(threadId) {
-                const response = await fetch(`http://localhost:8080/seller-hub/api/support/messages/${threadId}`, {
+                const response = await fetch(`http://seller-central-mft-ci-seller-central-seller-3804.stage-ore-k8s.grofer.io/seller-hub/api/support/messages/${threadId}`, {
                     method: 'GET',
                     headers: {
                         'X-Gr-Uid': '1011',
@@ -375,7 +375,7 @@
             async function apiSubmitFeedback(messageId, rating, remarks) {
                 const payload = { message_id: messageId, rating };
                 if (remarks) payload.remarks = remarks;
-                const response = await fetch('http://localhost:8080/seller-hub/api/support/message-feedback', {
+                const response = await fetch('http://seller-central-mft-ci-seller-central-seller-3804.stage-ore-k8s.grofer.io/seller-hub/api/support/message-feedback', {
                     method: 'POST',
                     headers: {
                         'X-Gr-Uid': '1011',
