@@ -8,7 +8,7 @@
         body {
             font-family: sans-serif;
             margin: 0;
-            background-color: #f4f4f4;
+            background-color: #ffffff;
             display: flex;
             justify-content: center;
             align-items: stretch;
@@ -258,7 +258,8 @@
                         return {
                             success: true,
                             threadId: data.data.thread_id,
-                            message: data.data.content
+                            message: data.data.response,
+                            agentResponse: data.data.response
                         };
                     } else {
                         // Remove loading message on error
@@ -310,8 +311,9 @@
                         }
                         return {
                             success: true,
-                            message: data.data.content,
-                            agentResponse: data.data.content
+                            message: data.data.response,
+                            agentResponse: data.data.response,
+                            threadId: data.data.thread_id
                         };
                     } else {
                         // Remove loading message on error
@@ -400,19 +402,43 @@
             function addMessageToChat(message, sender, opts = {}) { // sender can be 'user', 'agent', or 'system'
                 const messageElement = document.createElement('div');
                 messageElement.classList.add('message', sender);
-                messageElement.textContent = message;
-                if (opts.messageId) {
-                    messageElement.dataset.messageId = opts.messageId;
+                
+                // If message is an object with query and response, format it accordingly
+                if (typeof message === 'object' && message.query && message.response) {
+                    const queryDiv = document.createElement('div');
+                    queryDiv.classList.add('message', 'user');
+                    queryDiv.textContent = message.query;
+                    chatView.appendChild(queryDiv);
+
+                    const responseDiv = document.createElement('div');
+                    responseDiv.classList.add('message', 'agent');
+                    responseDiv.textContent = message.response;
+                    if (opts.messageId) {
+                        responseDiv.dataset.messageId = opts.messageId;
+                    }
+                    if (opts.isAgentFeedback) {
+                        responseDiv.classList.add('rateable-agent');
+                        responseDiv.style.cursor = 'pointer';
+                        responseDiv.addEventListener('click', function handler(e) {
+                            showFeedbackModal(responseDiv, opts.messageId);
+                        });
+                    }
+                    chatView.appendChild(responseDiv);
+                } else {
+                    // Handle regular messages (system messages or legacy format)
+                    messageElement.textContent = message;
+                    if (opts.messageId) {
+                        messageElement.dataset.messageId = opts.messageId;
+                    }
+                    if (opts.isAgentFeedback && sender === 'agent') {
+                        messageElement.classList.add('rateable-agent');
+                        messageElement.style.cursor = 'pointer';
+                        messageElement.addEventListener('click', function handler(e) {
+                            showFeedbackModal(messageElement, opts.messageId);
+                        });
+                    }
+                    chatView.appendChild(messageElement);
                 }
-                if (opts.isAgentFeedback && sender === 'agent') {
-                    messageElement.classList.add('rateable-agent');
-                    messageElement.style.cursor = 'pointer';
-                    messageElement.addEventListener('click', function handler(e) {
-                        // Open the feedback modal (instead of appending a dropdown inline)
-                        showFeedbackModal(messageElement, opts.messageId);
-                    });
-                }
-                chatView.appendChild(messageElement);
                 chatView.scrollTop = chatView.scrollHeight; // Auto-scroll to the bottom
             }
 
@@ -494,8 +520,14 @@
                         const response = await apiFetchMessages(currentThreadId);
                         if (response.success && response.messages.length > 0) {
                             response.messages.forEach(msg => {
-                                const sender = msg.sender === 'USER' ? 'user' : (msg.sender === 'AGENT' ? 'agent' : 'system');
-                                addMessageToChat(msg.content, sender);
+                                // Handle new message format
+                                if (msg.query && msg.response) {
+                                    addMessageToChat(msg, 'agent', { messageId: msg.id });
+                                } else {
+                                    // Fallback for legacy format
+                                    const sender = msg.sender === 'USER' ? 'user' : (msg.sender === 'AGENT' ? 'agent' : 'system');
+                                    addMessageToChat(msg.content, sender);
+                                }
                             });
                         } else {
                             addMessageToChat('No messages found in this thread.', 'system');
@@ -617,12 +649,18 @@
                     chatView.innerHTML = '';
                     if (response.success && response.messages.length > 0) {
                         response.messages.forEach(msg => {
-                            const sender = msg.sender === 'USER' ? 'user' : (msg.sender === 'AGENT' ? 'agent' : 'system');
-                            addMessageToChat(
-                                msg.content,
-                                sender,
-                                sender === 'agent' ? { messageId: msg.id, isAgentFeedback: true } : {}
-                            );
+                            if (msg.query && msg.response) {
+                                // Handle new message format
+                                addMessageToChat(msg, 'agent', { messageId: msg.id, isAgentFeedback: true });
+                            } else {
+                                // Fallback for legacy format
+                                const sender = msg.sender === 'USER' ? 'user' : (msg.sender === 'AGENT' ? 'agent' : 'system');
+                                addMessageToChat(
+                                    msg.content,
+                                    sender,
+                                    sender === 'agent' ? { messageId: msg.id, isAgentFeedback: true } : {}
+                                );
+                            }
                         });
                     } else {
                         addMessageToChat('No messages found in this thread.', 'system');
